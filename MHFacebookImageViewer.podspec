@@ -14,6 +14,7 @@ Pod::Spec.new do |s|
   s.frameworks = 'UIKit', 'QuartzCore'
   s.requires_arc = true
   s.dependency     'AFNetworking', '~> 2.4.1'
+  s.dependency     'SDWebImage'
   s.license      = {
     :type => 'MIT',
     :text => <<-LICENSE
