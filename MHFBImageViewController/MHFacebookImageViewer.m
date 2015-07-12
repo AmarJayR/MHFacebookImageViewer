@@ -26,6 +26,8 @@
 #import "MHFacebookImageViewer.h"
 #import "UIImageView+AFNetworking.h"
 #import <objc/runtime.h>
+#import "UIImageView+WebCache.h"
+
 static const CGFloat kMinBlackMaskAlpha = 0.3f;
 static const CGFloat kMaxImageScale = 2.5f;
 static const CGFloat kMinImageScale = 1.0f;
@@ -106,14 +108,18 @@ static const CGFloat kMinImageScale = 1.0f;
         __block MHFacebookImageViewerCell * _justMeInsideTheBlock = self;
         __block UIScrollView * _scrollViewInsideBlock = __scrollView;
 
-        [__imageView setImageWithURLRequest:[NSURLRequest requestWithURL:imageURL] placeholderImage:defaultImage success:^(NSURLRequest *request, NSHTTPURLResponse *response, UIImage *image) {
-            [_scrollViewInsideBlock setZoomScale:1.0f animated:YES];
-            [_imageViewInTheBlock setImage:image];
-            _imageViewInTheBlock.frame = [_justMeInsideTheBlock centerFrameFromImage:_imageViewInTheBlock.image];
-
-        } failure:^(NSURLRequest *request, NSHTTPURLResponse *response, NSError *error) {
-            NSLog(@"Image From URL Not loaded");
-        }];
+        [__imageView sd_setImageWithURL:imageURL
+                      placeholderImage:defaultImage
+                             completed:^(UIImage *image, NSError *error, SDImageCacheType cacheType, NSURL *imageURL) {
+                                 if (error == nil) {
+                                     [_scrollViewInsideBlock setZoomScale:1.0f animated:YES];
+                                     [_imageViewInTheBlock setImage:image];
+                                     _imageViewInTheBlock.frame = [_justMeInsideTheBlock centerFrameFromImage:_imageViewInTheBlock.image];
+                                 } else {
+                                     NSLog(@"Image From URL Not loaded-");
+                                 }
+                                 
+                             }];
 
         if(_imageIndex==_initialIndex && !_isLoaded){
             __imageView.frame = _originalFrameRelativeToScreen;
@@ -147,12 +153,25 @@ static const CGFloat kMinImageScale = 1.0f;
     _panGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(gestureRecognizerDidPan:)];
     _panGesture.cancelsTouchesInView = NO;
     _panGesture.delegate = self;
-     __weak UITableView * weakSuperView = (UITableView*) view.superview.superview.superview.superview.superview;
-    [weakSuperView.panGestureRecognizer requireGestureRecognizerToFail:_panGesture];
+    
+    __weak UIView *weakSuperView = view.superview;
+    while (![weakSuperView isKindOfClass:[UITableView class]]) {
+        weakSuperView = weakSuperView.superview;
+        if (weakSuperView == Nil) {
+            break;
+        }
+    }
+    
+    if ([weakSuperView isKindOfClass:[UITableView class]]) {
+        [((UITableView*)weakSuperView).panGestureRecognizer requireGestureRecognizerToFail:_panGesture];
+    }
+    
+    
     [view addGestureRecognizer:_panGesture];
     [_gestures addObject:_panGesture];
-
+    
 }
+
 
 # pragma mark - Avoid Unwanted Horizontal Gesture
 - (BOOL)gestureRecognizerShouldBegin:(UIPanGestureRecognizer *)panGestureRecognizer {
